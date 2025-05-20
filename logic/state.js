@@ -10,6 +10,9 @@ export const gameState = {
     currentHealth: 100, // Current health
     isInvulnerable: false, // For damage cooldown
     invulnerabilityTime: 1000, // 1 second of invulnerability after taking damage
+    isGameOver: false, // Флаг остановки всей игры
+    heartCount: 10, // Количество сердечек (по умолчанию easy)
+    heartValue: 10, // Сколько HP в одном сердечке (по умолчанию easy)
 }
 
 // Difficulty settings
@@ -33,4 +36,13 @@ export function resetGameState() {
     gameState.score = 0
     gameState.collectedItems = []
     gameState.gameTime = 60
+    gameState.currentHealth = gameState.health
+    gameState.isGameOver = false
+    if (gameState.difficulty === 'hard') {
+        gameState.heartCount = 5
+        gameState.heartValue = 20
+    } else {
+        gameState.heartCount = 10
+        gameState.heartValue = 10
+    }
 } 

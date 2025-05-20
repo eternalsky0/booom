@@ -14,25 +14,35 @@ export function createPlayer() {
             previousHeight: null,
             heightDelta: 0,
             direction: 'right',
+            isTakingHit: false,
+            isDead: false,
+            die() {
+                if (player.isDead) return
+                player.isDead = true
+                player.isTakingHit = false
+                // Отключаем физику и управление
+                player.unuse('body')
+                // Проигрываем анимацию смерти
+                player.use(sprite('death-sprite'))
+                player.play('death')
+                // После анимации — пауза 2 секунды, затем переход к результатам
+                wait(0.7, () => {
+                    wait(2, () => {
+                        go('results')
+                    })
+                })
+            },
             takeDamage(amount) {
-                if (gameState.isInvulnerable) return
+                if (gameState.isInvulnerable || player.isTakingHit || player.isDead) return
                 
                 gameState.currentHealth = Math.max(0, gameState.currentHealth - amount)
-                gameState.isInvulnerable = true
-
-                // Эффект мигания
-                let blinkCount = 0
-                const maxBlinks = 5
-                function blink() {
-                    if (blinkCount >= maxBlinks) {
-                        player.opacity = 1
-                        return
-                    }
-                    player.opacity = (player.opacity === 1) ? 0.3 : 1
-                    blinkCount++
-                    wait(0.08, blink)
+                if (gameState.currentHealth <= 0 && !player.isDead) {
+                    gameState.currentHealth = 0
+                    player.die()
+                    return
                 }
-                blink()
+                gameState.isInvulnerable = true
+                player.isTakingHit = true
 
                 // Сохраняем текущий спрайт и анимацию
                 const wasGrounded = player.isGrounded()
@@ -50,27 +60,40 @@ export function createPlayer() {
                     nextSprite = 'run-sprite'
                 }
 
-                // Воспроизводим анимацию получения урона
+                // Учитываем направление для анимации получения урона
                 player.use(sprite('take-hit-sprite'))
+                player.flipX = (player.direction === 'left')
                 player.play('take-hit')
 
-                // После анимации возвращаемся к предыдущему состоянию
+                // Эффект мигания
+                let blinkCount = 0
+                const maxBlinks = 5
+                function blink() {
+                    if (blinkCount >= maxBlinks || player.isDead) {
+                        player.opacity = 1
+                        return
+                    }
+                    player.opacity = (player.opacity === 1) ? 0.3 : 1
+                    blinkCount++
+                    wait(0.06, blink)
+                }
+                blink()
+
+                // После анимации возвращаемся к предыдущему состоянию и снимаем флаг
                 wait(0.3, () => {
-                    player.use(sprite(nextSprite))
-                    player.play(nextAnim)
-                    player.direction = wasDirection
+                    if (!player.isDead) {
+                        player.use(sprite(nextSprite))
+                        player.play(nextAnim)
+                        player.direction = wasDirection
+                        player.flipX = (player.direction === 'left')
+                        player.isTakingHit = false
+                    }
                 })
                 
                 // Remove invulnerability after cooldown
                 wait(gameState.invulnerabilityTime / 1000, () => {
                     gameState.isInvulnerable = false
-                    player.opacity = 1
                 })
-                
-                // Check if player is dead
-                if (gameState.currentHealth <= 0) {
-                    go('results')
-                }
             }
         }
     ])
@@ -79,6 +102,7 @@ export function createPlayer() {
 
     // Controls
     onKeyDown('right', () => {
+        if (player.isDead) return
         if (player.curAnim() !== 'run-anim' && player.isGrounded()) {
             player.use(sprite('run-sprite'))
             player.play('run-anim')
@@ -88,11 +112,13 @@ export function createPlayer() {
     })
 
     onKeyRelease('right', () => {
+        if (player.isDead) return
         player.use(sprite('idle-sprite'))
         player.play('idle-anim')
     })
 
     onKeyDown('left', () => {
+        if (player.isDead) return
         if (player.curAnim() !== 'run-anim' && player.isGrounded()) {
             player.use(sprite('run-sprite'))
             player.play('run-anim')
@@ -102,11 +128,13 @@ export function createPlayer() {
     })
 
     onKeyRelease('left', () => {
+        if (player.isDead) return
         player.use(sprite('idle-sprite'))
         player.play('idle-anim')
     })
 
     onKeyPress('up', () => {
+        if (player.isDead) return
         if (player.isGrounded()) {
             player.jump()
         }
@@ -114,21 +142,19 @@ export function createPlayer() {
 
     // Animation updates
     onUpdate(() => {
+        if (player.isTakingHit || player.isDead) return
         if (player.curAnim() !== 'run-anim' && player.isGrounded()) {
             player.use(sprite('idle-sprite'))
             player.play('idle-anim')
         }
-
         if (player.curAnim() !== 'jump-anim' && !player.isGrounded() && player.heightDelta > 0) {
             player.use(sprite('jump-sprite'))
             player.play('jump-anim')
         }
-
         if (player.curAnim() !== 'fall-anim' && !player.isGrounded() && player.heightDelta < 0) {
             player.use(sprite('fall-sprite'))
             player.play('fall-anim')
         }
-
         if (player.direction === 'left') {
             player.flipX = true
         } else {

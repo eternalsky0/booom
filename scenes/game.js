@@ -27,11 +27,30 @@ export function createGameScene() {
             fixed()
         ])
 
-        const healthText = add([
-            text(`Health: ${gameState.currentHealth}/${gameState.health}`, { size: 32 }),
-            pos(20, 60),
-            fixed()
-        ])
+        // Сердечки здоровья
+        let heartSprites = []
+        function drawHearts() {
+            heartSprites.forEach(h => h.destroy())
+            heartSprites = []
+            let hp = gameState.currentHealth
+            for (let i = 0; i < gameState.heartCount; i++) {
+                let x = width() - 28 - i * 28
+                let full = hp >= gameState.heartValue
+                let half = !full && hp > 0
+                let opacity = (hp > 0) ? (full ? 1 : 0.6) : 0.2
+                let spriteObj = add([
+                    sprite('heart'),
+                    pos(x, 20),
+                    scale(0.18),
+                    { opacity: opacity },
+                    fixed()
+                ])
+                heartSprites.push(spriteObj)
+                hp -= gameState.heartValue
+                if (hp < 0) hp = 0 // чтобы не было отрицательных значений
+            }
+        }
+        drawHearts()
 
         // Game map
         const map = addLevel([
@@ -118,29 +137,49 @@ export function createGameScene() {
             spawnChest()
         }, 10000) // Every 10 seconds
 
+        // Остановка игры при смерти
+        function stopGame() {
+            gameState.isGameOver = true
+            clearInterval(gameTimer)
+            clearInterval(monsterSpawnInterval)
+            clearInterval(chestSpawnInterval)
+            // Остановить всех монстров (если есть onUpdate у монстров, они должны проверять gameState.isGameOver)
+            monsters.forEach(m => { if (m.paused !== undefined) m.paused = true })
+        }
+
         // Update health display
         onUpdate(() => {
-            healthText.text = `Health: ${gameState.currentHealth}/${gameState.health}`
+            if (gameState.isGameOver) return
+            drawHearts()
         })
 
         // Collision handling
         player.onCollide('monster', (monster) => {
-            // Player takes damage
+            if (gameState.isGameOver) return
             player.takeDamage(20)
             gameState.score -= 10
             scoreText.text = `Score: ${gameState.score}`
             monster.destroy()
+            if (player.isDead) {
+                stopGame()
+                drawHearts()
+            }
         })
 
-        // Урон от снарядов монстров
         player.onCollide('monsterProjectile', (proj) => {
+            if (gameState.isGameOver) return
             player.takeDamage(15)
             gameState.score -= 15
             scoreText.text = `Score: ${gameState.score}`
             proj.destroy()
+            if (player.isDead) {
+                stopGame()
+                drawHearts()
+            }
         })
 
         player.onCollide('chest', (chest) => {
+            if (gameState.isGameOver) return
             // Random reward
             const rewards = [
                 { type: 'currency', amount: 10 },
@@ -162,6 +201,7 @@ export function createGameScene() {
 
         // Camera follow player
         onUpdate(() => {
+            if (gameState.isGameOver) return
             if (player.previousHeight) {
                 player.heightDelta = player.previousHeight - player.pos.y
             }
@@ -185,9 +225,11 @@ export function createGameScene() {
             clearInterval(gameTimer)
             clearInterval(monsterSpawnInterval)
             clearInterval(chestSpawnInterval)
+            gameState.isGameOver = false
             // Удаляем всех монстров
             monsters.forEach(m => m.destroy())
             monsters.length = 0
+            heartSprites.forEach(h => h.destroy())
         })
     })
 } 
