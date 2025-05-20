@@ -84,6 +84,10 @@ export function createGameScene() {
         // Create player
         const player = createPlayer()
 
+        // Массив всех монстров
+        const monsters = []
+        const MAX_MONSTERS = 6
+
         // Game timer
         let timeLeft = gameState.gameTime
         const gameTimer = setInterval(() => {
@@ -98,7 +102,9 @@ export function createGameScene() {
 
         // Monster spawn timer
         const monsterSpawnInterval = setInterval(() => {
-            spawnMonster()
+            if (monsters.length < MAX_MONSTERS) {
+                spawnMonster(player, monsters)
+            }
         }, 1000 / difficulties[gameState.difficulty].monsterSpawnRate)
 
         // Chest spawn timer
@@ -112,6 +118,13 @@ export function createGameScene() {
             gameState.score -= 10
             scoreText.text = `Score: ${gameState.score}`
             monster.destroy()
+        })
+
+        // Урон от снарядов монстров
+        player.onCollide('monsterProjectile', (proj) => {
+            gameState.score -= 15
+            scoreText.text = `Score: ${gameState.score}`
+            proj.destroy()
         })
 
         player.onCollide('chest', (chest) => {
@@ -159,6 +172,9 @@ export function createGameScene() {
             clearInterval(gameTimer)
             clearInterval(monsterSpawnInterval)
             clearInterval(chestSpawnInterval)
+            // Удаляем всех монстров
+            monsters.forEach(m => m.destroy())
+            monsters.length = 0
         })
     })
 } 
