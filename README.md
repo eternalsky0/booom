@@ -77,4 +77,14 @@ README.md          — документация
 - Улучшить баланс игры
 - Добавить анимации для UI элементов
 
+## Game Mechanics
+
+### Health System
+- Player starts with 100 health points
+- Taking damage from monsters reduces health by 20 points
+- Taking damage from monster projectiles reduces health by 15 points
+- After taking damage, player becomes temporarily invulnerable for 1 second
+- When health reaches 0, the game ends
+- Health is displayed in the top-left corner of the screen
+
 Playable demo link : https://jslegend.itch.io/vertical-platformer-kaboomjs

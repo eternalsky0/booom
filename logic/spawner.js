@@ -9,11 +9,17 @@ function isPositionFree(posVec, monsters, minDist = 40) {
     return !monsters.some(m => m.exists() && m.pos.dist(posVec) < minDist)
 }
 
+const MONSTER_STATE = {
+    PATROL: 'patrol',
+    CHASE: 'chase',
+    RETURN: 'return',
+    SLEEP: 'sleep',
+}
+
 // Monster spawner
 export function spawnMonster(player, monsters) {
-    // Выбор типа монстра
-    const types = ['normal', 'fast', 'jumper', 'shooter']
-    // Не более 2 подряд одного типа
+    // Типы монстров
+    const types = ['normal', 'fast', 'jumper', 'shooter', 'elite']
     let lastTypes = monsters.slice(-2).map(m => m.type)
     let availableTypes = types.filter(t => lastTypes.filter(l => l === t).length < 2)
     const type = availableTypes.length > 0 ? availableTypes[Math.floor(Math.random() * availableTypes.length)] : types[Math.floor(Math.random() * types.length)]
@@ -21,6 +27,7 @@ export function spawnMonster(player, monsters) {
     if (type === 'fast') speed *= 1.5
     if (type === 'jumper') speed *= 1.1
     if (type === 'shooter') speed *= 0.8
+    if (type === 'elite') speed *= 1.3
 
     // Спавним ближе к игроку, но не ближе 120px
     let posVec
@@ -31,7 +38,7 @@ export function spawnMonster(player, monsters) {
         posVec = vec2(px, py)
         attempts++
     } while ((!isPositionFree(posVec, monsters, 48) || posVec.dist(player.pos) < 120) && attempts < 10)
-    if (!isPositionFree(posVec, monsters, 48) || posVec.dist(player.pos) < 120) return // Не спавним, если нет места
+    if (!isPositionFree(posVec, monsters, 48) || posVec.dist(player.pos) < 120) return
 
     const monster = createMonster(posVec, speed, type, player, monsters)
     monsters.push(monster)
@@ -39,7 +46,8 @@ export function spawnMonster(player, monsters) {
 
 // Monster class
 function createMonster(posVec, speed, type, player, monsters) {
-    let colorVal = type === 'fast' ? rgb(255,80,80) : type === 'jumper' ? rgb(80,255,80) : type === 'shooter' ? rgb(80,80,255) : rgb(255,0,0)
+    let colorVal = type === 'fast' ? rgb(255,80,80) : type === 'jumper' ? rgb(80,255,80) : type === 'shooter' ? rgb(80,80,255) : type === 'elite' ? rgb(255,215,0) : rgb(255,0,0)
+    const spawnPoint = posVec.clone()
     const monster = add([
         rect(32, 32),
         pos(posVec.x, posVec.y),
@@ -51,7 +59,10 @@ function createMonster(posVec, speed, type, player, monsters) {
             speed: speed,
             direction: Math.random() < 0.5 ? 1 : -1,
             type: type,
-            shootCooldown: 0
+            shootCooldown: 0,
+            state: MONSTER_STATE.PATROL,
+            spawnPoint: spawnPoint,
+            sleepTimer: 0
         }
     ])
 
@@ -60,46 +71,95 @@ function createMonster(posVec, speed, type, player, monsters) {
     tween(monster.opacity, 1, 0.5, v => monster.opacity = v)
 
     monster.onUpdate(() => {
-        // Погоня за игроком
-        let chase = false
-        if (player && Math.abs(player.pos.x - monster.pos.x) < 350 && Math.abs(player.pos.y - monster.pos.y) < 120) {
-            chase = true
-        }
-        let moveSpeed = monster.speed
-        if (chase) moveSpeed *= 1.5
+        // Проверка расстояния до игрока и spawnPoint
+        const distToPlayer = monster.pos.dist(player.pos)
+        const distToSpawn = monster.pos.dist(monster.spawnPoint)
+        const onScreen = monster.pos.x > 0 && monster.pos.x < width() && monster.pos.y > 0 && monster.pos.y < height()
 
-        // Патрулирование платформы (не падает вниз)
-        if (monster.isGrounded()) {
-            if (chase) {
-                if (player.pos.x > monster.pos.x) {
-                    monster.move(moveSpeed, 0)
+        // SLEEP: если далеко от игрока и вне экрана
+        if (distToPlayer > 900 && !onScreen) {
+            monster.state = MONSTER_STATE.SLEEP
+            monster.sleepTimer += dt()
+            if (monster.sleepTimer > 10) monster.destroy() // удаляем совсем
+            return
+        } else {
+            monster.sleepTimer = 0
+        }
+
+        // CHASE: если игрок близко
+        if (distToPlayer < 500 && Math.abs(player.pos.y - monster.pos.y) < 120) {
+            monster.state = MONSTER_STATE.CHASE
+        } else if (monster.state === MONSTER_STATE.CHASE && distToPlayer >= 600) {
+            monster.state = MONSTER_STATE.RETURN
+        }
+
+        // RETURN: возвращаемся к spawnPoint
+        if (monster.state === MONSTER_STATE.RETURN) {
+            if (distToSpawn > 10) {
+                if (monster.spawnPoint.x > monster.pos.x) {
+                    monster.move(monster.speed, 0)
                     monster.direction = 1
                 } else {
-                    monster.move(-moveSpeed, 0)
+                    monster.move(-monster.speed, 0)
                     monster.direction = -1
                 }
+                // Прыжок, если spawn выше
+                if (monster.spawnPoint.y < monster.pos.y - 10 && monster.isGrounded()) {
+                    monster.jump()
+                }
             } else {
-                monster.move(moveSpeed * monster.direction, 0)
+                monster.state = MONSTER_STATE.PATROL
+            }
+            return
+        }
+
+        // SLEEP: если далеко от игрока
+        if (distToPlayer > 900) {
+            monster.state = MONSTER_STATE.SLEEP
+            return
+        }
+
+        // PATROL: ходим по платформе
+        if (monster.state === MONSTER_STATE.PATROL) {
+            if (monster.isGrounded()) {
+                monster.move(monster.speed * monster.direction, 0)
+            }
+            // Смена направления у края экрана
+            if (monster.pos.x <= 0 || monster.pos.x >= width()) {
+                monster.direction *= -1
+            }
+            // Случайная смена направления
+            if (Math.random() < 0.005) monster.direction *= -1
+        }
+
+        // CHASE: преследуем игрока
+        if (monster.state === MONSTER_STATE.CHASE) {
+            let moveSpeed = monster.speed * 1.5
+            if (player.pos.x > monster.pos.x) {
+                monster.move(moveSpeed, 0)
+                monster.direction = 1
+            } else {
+                monster.move(-moveSpeed, 0)
+                monster.direction = -1
+            }
+            // Прыжок, если игрок выше
+            if (player.pos.y < monster.pos.y - 10 && monster.isGrounded()) {
+                monster.jump()
+            }
+            // Стреляющий монстр
+            if (monster.type === 'shooter' || monster.type === 'elite') {
+                monster.shootCooldown -= dt()
+                // Стреляет только если игрок на линии огня
+                if (Math.abs(player.pos.y - monster.pos.y) < 24 && monster.shootCooldown <= 0) {
+                    spawnProjectile(monster, player)
+                    monster.shootCooldown = monster.type === 'elite' ? 1.2 : 2 + Math.random() * 2
+                }
             }
         }
 
         // Прыгающий монстр
-        if (monster.type === 'jumper' && monster.isGrounded() && Math.random() < 0.02) {
+        if ((monster.type === 'jumper' || monster.type === 'elite') && monster.isGrounded() && Math.random() < 0.02) {
             monster.jump()
-        }
-
-        // Стреляющий монстр
-        if (monster.type === 'shooter') {
-            monster.shootCooldown -= dt()
-            if (chase && monster.shootCooldown <= 0) {
-                spawnProjectile(monster, player)
-                monster.shootCooldown = 2 + Math.random() * 2
-            }
-        }
-
-        // Смена направления у края экрана
-        if (monster.pos.x <= 0 || monster.pos.x >= width()) {
-            monster.direction *= -1
         }
     })
 
@@ -120,7 +180,7 @@ function spawnProjectile(monster, player) {
         pos(monster.pos.x + dir * 20, monster.pos.y + 8),
         area(),
         color(255, 255, 0),
-        move(dir, 400),
+        move(dir, monster.type === 'elite' ? 600 : 400),
         'monsterProjectile'
     ])
     proj.onUpdate(() => {

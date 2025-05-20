@@ -2,10 +2,14 @@
 export const gameState = {
     bonusCurrency: 1000, // Starting bonus currency
     currentLevel: null,
-    difficulty: null,
+    difficulty: 'normal',
     gameTime: 60,
     score: 0,
-    collectedItems: []
+    collectedItems: [],
+    health: 100, // Maximum health
+    currentHealth: 100, // Current health
+    isInvulnerable: false, // For damage cooldown
+    invulnerabilityTime: 1000, // 1 second of invulnerability after taking damage
 }
 
 // Difficulty settings

@@ -27,6 +27,12 @@ export function createGameScene() {
             fixed()
         ])
 
+        const healthText = add([
+            text(`Health: ${gameState.currentHealth}/${gameState.health}`, { size: 32 }),
+            pos(20, 60),
+            fixed()
+        ])
+
         // Game map
         const map = addLevel([
             '5                                                     5',
@@ -112,9 +118,15 @@ export function createGameScene() {
             spawnChest()
         }, 10000) // Every 10 seconds
 
+        // Update health display
+        onUpdate(() => {
+            healthText.text = `Health: ${gameState.currentHealth}/${gameState.health}`
+        })
+
         // Collision handling
         player.onCollide('monster', (monster) => {
             // Player takes damage
+            player.takeDamage(20)
             gameState.score -= 10
             scoreText.text = `Score: ${gameState.score}`
             monster.destroy()
@@ -122,6 +134,7 @@ export function createGameScene() {
 
         // Урон от снарядов монстров
         player.onCollide('monsterProjectile', (proj) => {
+            player.takeDamage(15)
             gameState.score -= 15
             scoreText.text = `Score: ${gameState.score}`
             proj.destroy()
