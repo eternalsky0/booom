@@ -32,7 +32,9 @@ export function spawnMonster(player, monsters) {
     let posVec
     let attempts = 0
     do {
-        let px = clamp(player.pos.x + rand(-350, 350), 100, width() - 100)
+        // Увеличиваем диапазон спавна и учитываем позицию камеры
+        const cameraX = camPos().x
+        let px = clamp(player.pos.x + rand(-350, 350), cameraX - 400, cameraX + width() + 400)
         let py = clamp(player.pos.y + rand(-120, 120), 100, height() - 100)
         posVec = vec2(px, py)
         attempts++
@@ -79,22 +81,26 @@ function createMonster(posVec, speed, type, player, monsters) {
         // Проверка расстояния до игрока и spawnPoint
         const distToPlayer = monster.pos.dist(player.pos)
         const distToSpawn = monster.pos.dist(monster.spawnPoint)
-        const onScreen = monster.pos.x > 0 && monster.pos.x < width() && monster.pos.y > 0 && monster.pos.y < height()
+        const cameraX = camPos().x
+        const onScreen = monster.pos.x > cameraX - 100 && 
+                        monster.pos.x < cameraX + width() + 100 && 
+                        monster.pos.y > 0 && 
+                        monster.pos.y < height()
 
         // SLEEP: если далеко от игрока и вне экрана
-        if (distToPlayer > 900 && !onScreen) {
+        if (distToPlayer > 1200 && !onScreen) { // Увеличили дистанцию
             monster.state = MONSTER_STATE.SLEEP
             monster.sleepTimer += dt()
-            if (monster.sleepTimer > 10) monster.destroy() // удаляем совсем
+            if (monster.sleepTimer > 20) monster.destroy() // Увеличили время жизни
             return
         } else {
             monster.sleepTimer = 0
         }
 
         // CHASE: если игрок близко
-        if (distToPlayer < 500 && Math.abs(player.pos.y - monster.pos.y) < 120) {
+        if (distToPlayer < 600 && Math.abs(player.pos.y - monster.pos.y) < 120) { // Увеличили дистанцию преследования
             monster.state = MONSTER_STATE.CHASE
-        } else if (monster.state === MONSTER_STATE.CHASE && distToPlayer >= 600) {
+        } else if (monster.state === MONSTER_STATE.CHASE && distToPlayer >= 800) { // Увеличили дистанцию возврата
             monster.state = MONSTER_STATE.RETURN
         }
 
