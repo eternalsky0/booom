@@ -11,21 +11,21 @@ export function createResultsScene() {
 
         // Title
         add([
-            text('Game Results', { size: 64 }),
+            text('Результаты игры', { size: 64 }),
             pos(width() / 2, 100),
             anchor('center')
         ])
 
         // Score
         add([
-            text(`Final Score: ${gameState.score}`, { size: 32 }),
+            text(`Итоговый счет: ${gameState.score}`, { size: 32 }),
             pos(width() / 2, 200),
             anchor('center')
         ])
 
         // Collected items
         add([
-            text('Collected Items:', { size: 32 }),
+            text('Собранные предметы:', { size: 32 }),
             pos(width() / 2, 300),
             anchor('center')
         ])
@@ -33,8 +33,14 @@ export function createResultsScene() {
         // Display collected items
         let yOffset = 350
         gameState.collectedItems.forEach((item, index) => {
+            let itemText = ''
+            if (item.type === 'currency') {
+                itemText = `Монеты: ${item.amount}`
+            } else if (item.type === 'ticket') {
+                itemText = `Билеты: ${item.amount}`
+            }
             add([
-                text(`${item.type}: ${item.amount}`, { size: 24 }),
+                text(itemText, { size: 24 }),
                 pos(width() / 2, yOffset + (index * 30)),
                 anchor('center')
             ])
@@ -50,7 +56,7 @@ export function createResultsScene() {
         ])
         // Menu button text
         add([
-            text('Back to Menu', { size: 32 }),
+            text('В меню', { size: 32 }),
             pos(width() / 2, height() - 100),
             anchor('center')
         ])

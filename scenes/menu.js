@@ -11,14 +11,14 @@ export function createMenuScene() {
 
         // Title
         add([
-            text('Vertical Platformer', { size: 64 }),
+            text('Сокровищница', { size: 64 }),
             pos(width() / 2, 100),
             anchor('center')
         ])
 
         // Currency display
         add([
-            text(`Bonus Currency: ${gameState.bonusCurrency}`, { size: 32 }),
+            text(`Бонусные монеты: ${gameState.bonusCurrency}`, { size: 32 }),
             pos(width() / 2, 200),
             anchor('center')
         ])
@@ -48,7 +48,38 @@ export function createMenuScene() {
             })
         }
 
-        createDifficultyButton('Easy - 100', 300, 'easy')
-        createDifficultyButton('Hard - 300', 400, 'hard')
+        createDifficultyButton('Легкий - 100', 300, 'easy')
+        createDifficultyButton('Сложный - 300', 400, 'hard')
+
+        // Instructions
+        const instructions = [
+            'Управление:',
+            '← → - движение',
+            '↑ - прыжок',
+            'ЛКМ - атака',
+            '',
+            'Цель:',
+            '• Собрать сокровища',
+            '• Победить монстров',
+            '• Набрать больше очков',
+            '',
+            'Особенности:',
+            '• 60 секунд на игру',
+            '• Сундуки каждые 10 секунд',
+            '• Монстры наносят 1 урон',
+            '• За монстра +20 очков'
+        ]
+
+        // Add instructions text
+        instructions.forEach((line, index) => {
+            add([
+                text(line, { 
+                    size: 24,
+                    font: 'arial'
+                }),
+                pos(20, height() - 400 + (index * 25)),
+                fixed()
+            ])
+        })
     })
 } 

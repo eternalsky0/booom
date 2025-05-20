@@ -22,13 +22,13 @@ export function createGameScene() {
 
         // Game UI
         const scoreText = add([
-            text(`Score: ${gameState.score}`, { size: 32 }),
+            text(`Очки: ${gameState.score}`, { size: 32 }),
             pos(20, 20),
             fixed()
         ])
 
         const timeText = add([
-            text(`Time: ${gameState.gameTime}`, { size: 32 }),
+            text(`Время: ${gameState.gameTime}`, { size: 32 }),
             pos(width() - 150, 60),
             fixed()
         ])
