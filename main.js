@@ -55,12 +55,7 @@ async function loadAllAssets() {
             loadSprite('take-hit-sprite', 'assets/Take Hit.png', {
                 sliceX: 4,
                 sliceY: 1,
-                anims: { 'take-hit-anim': { from: 0, to: 3, loop: false }}
-            }),
-            loadSprite('death-sprite', 'assets/Death.png', {
-                sliceX: 6,
-                sliceY: 1,
-                anims: { 'death-anim': { from: 0, to: 5, loop: false }}
+                anims: { 'take-hit': { from: 0, to: 3, loop: false }}
             })
         ])
 

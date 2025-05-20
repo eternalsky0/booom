@@ -1,19 +1,5 @@
 import { gameState } from '../logic/state.js'
 
-function blinkPlayer(player, times = 4, interval = 0.1) {
-    let count = 0;
-    function blink() {
-        player.opacity = player.opacity === 1 ? 0.3 : 1;
-        count++;
-        if (count < times * 2) {
-            wait(interval, blink);
-        } else {
-            player.opacity = 1;
-        }
-    }
-    blink();
-}
-
 // Player class
 export function createPlayer() {
     const player = add([
@@ -29,37 +15,61 @@ export function createPlayer() {
             heightDelta: 0,
             direction: 'right',
             takeDamage(amount) {
-                if (gameState.isInvulnerable || player.isDead) return
+                if (gameState.isInvulnerable) return
                 
                 gameState.currentHealth = Math.max(0, gameState.currentHealth - amount)
                 gameState.isInvulnerable = true
-                
-                // Вызов анимации урона
-                player.use(sprite('take-hit-sprite'))
-                player.play('take-hit-anim')
-                // Вернуть обычную анимацию после удара
-                wait(0.4, () => {
-                    if (gameState.currentHealth > 0) {
-                        player.use(sprite('idle-sprite'))
-                        player.play('idle-anim')
+
+                // Эффект мигания
+                let blinkCount = 0
+                const maxBlinks = 5
+                function blink() {
+                    if (blinkCount >= maxBlinks) {
+                        player.opacity = 1
+                        return
                     }
+                    player.opacity = (player.opacity === 1) ? 0.3 : 1
+                    blinkCount++
+                    wait(0.08, blink)
+                }
+                blink()
+
+                // Сохраняем текущий спрайт и анимацию
+                const wasGrounded = player.isGrounded()
+                const wasDirection = player.direction
+                let nextAnim = 'idle-anim'
+                let nextSprite = 'idle-sprite'
+                if (!wasGrounded && player.heightDelta > 0) {
+                    nextAnim = 'jump-anim'
+                    nextSprite = 'jump-sprite'
+                } else if (!wasGrounded && player.heightDelta < 0) {
+                    nextAnim = 'fall-anim'
+                    nextSprite = 'fall-sprite'
+                } else if (wasGrounded && (isKeyDown('left') || isKeyDown('right'))) {
+                    nextAnim = 'run-anim'
+                    nextSprite = 'run-sprite'
+                }
+
+                // Воспроизводим анимацию получения урона
+                player.use(sprite('take-hit-sprite'))
+                player.play('take-hit')
+
+                // После анимации возвращаемся к предыдущему состоянию
+                wait(0.3, () => {
+                    player.use(sprite(nextSprite))
+                    player.play(nextAnim)
+                    player.direction = wasDirection
                 })
-                
-                blinkPlayer(player)
                 
                 // Remove invulnerability after cooldown
                 wait(gameState.invulnerabilityTime / 1000, () => {
                     gameState.isInvulnerable = false
+                    player.opacity = 1
                 })
                 
                 // Check if player is dead
                 if (gameState.currentHealth <= 0) {
-                    player.isDead = true
-                    player.use(sprite('death-sprite'))
-                    // Нет анимации смерти, просто показываем кадр смерти
-                    wait(1.2, () => {
-                        go('results')
-                    })
+                    go('results')
                 }
             }
         }
@@ -69,7 +79,6 @@ export function createPlayer() {
 
     // Controls
     onKeyDown('right', () => {
-        if (player.isDead) return
         if (player.curAnim() !== 'run-anim' && player.isGrounded()) {
             player.use(sprite('run-sprite'))
             player.play('run-anim')
@@ -79,13 +88,11 @@ export function createPlayer() {
     })
 
     onKeyRelease('right', () => {
-        if (player.isDead) return
         player.use(sprite('idle-sprite'))
         player.play('idle-anim')
     })
 
     onKeyDown('left', () => {
-        if (player.isDead) return
         if (player.curAnim() !== 'run-anim' && player.isGrounded()) {
             player.use(sprite('run-sprite'))
             player.play('run-anim')
@@ -95,13 +102,11 @@ export function createPlayer() {
     })
 
     onKeyRelease('left', () => {
-        if (player.isDead) return
         player.use(sprite('idle-sprite'))
         player.play('idle-anim')
     })
 
     onKeyPress('up', () => {
-        if (player.isDead) return
         if (player.isGrounded()) {
             player.jump()
         }
