@@ -62,7 +62,18 @@ async function loadAllAssets() {
                 sliceY: 1,
                 anims: { 'death': { from: 0, to: 5, loop: false }}
             }),
-            loadSprite('heart', 'assets/heart.png', { width: 32, height: 32 })
+            loadSprite('heart', 'assets/heart.png', { width: 32, height: 32 }),
+            loadSprite('attack1-sprite', 'assets/Attack1.png', {
+                sliceX: 4,
+                sliceY: 1,
+                anims: { 'attack1-anim': { from: 0, to: 3, loop: false }}
+            }),
+            loadSprite('attack2-sprite', 'assets/Attack2.png', {
+                sliceX: 4,
+                sliceY: 1,
+                anims: { 'attack2-anim': { from: 0, to: 3, loop: false }}
+            }),
+            loadSprite('rpg-chest', 'assets/RPG Chests.png')
         ])
 
         // Set gravity

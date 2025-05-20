@@ -19,14 +19,13 @@ const MONSTER_STATE = {
 // Monster spawner
 export function spawnMonster(player, monsters) {
     // Типы монстров
-    const types = ['normal', 'fast', 'jumper', 'shooter', 'elite']
+    const types = ['normal', 'fast', 'jumper', 'elite']
     let lastTypes = monsters.slice(-2).map(m => m.type)
     let availableTypes = types.filter(t => lastTypes.filter(l => l === t).length < 2)
     const type = availableTypes.length > 0 ? availableTypes[Math.floor(Math.random() * availableTypes.length)] : types[Math.floor(Math.random() * types.length)]
     let speed = difficulties[gameState.difficulty].monsterSpeed
     if (type === 'fast') speed *= 1.5
     if (type === 'jumper') speed *= 1.1
-    if (type === 'shooter') speed *= 0.8
     if (type === 'elite') speed *= 1.3
 
     // Спавним ближе к игроку, но не ближе 120px
@@ -46,10 +45,17 @@ export function spawnMonster(player, monsters) {
 
 // Monster class
 function createMonster(posVec, speed, type, player, monsters) {
-    let colorVal = type === 'fast' ? rgb(255,80,80) : type === 'jumper' ? rgb(80,255,80) : type === 'shooter' ? rgb(80,80,255) : type === 'elite' ? rgb(255,215,0) : rgb(255,0,0)
+    let colorVal = type === 'fast' ? rgb(255,80,80) : type === 'jumper' ? rgb(80,255,80) : type === 'elite' ? rgb(255,215,0) : rgb(255,0,0)
     const spawnPoint = posVec.clone()
+    
+    // Определяем размер монстра в зависимости от типа
+    let monsterSize = 32
+    if (type === 'fast') monsterSize = 24 // маленький
+    if (type === 'jumper') monsterSize = 40 // большой
+    if (type === 'elite') monsterSize = 48 // самый большой
+    
     const monster = add([
-        rect(32, 32),
+        rect(monsterSize, monsterSize),
         pos(posVec.x, posVec.y),
         area(),
         body(),
@@ -59,7 +65,6 @@ function createMonster(posVec, speed, type, player, monsters) {
             speed: speed,
             direction: Math.random() < 0.5 ? 1 : -1,
             type: type,
-            shootCooldown: 0,
             state: MONSTER_STATE.PATROL,
             spawnPoint: spawnPoint,
             sleepTimer: 0
@@ -146,15 +151,6 @@ function createMonster(posVec, speed, type, player, monsters) {
             if (player.pos.y < monster.pos.y - 10 && monster.isGrounded()) {
                 monster.jump()
             }
-            // Стреляющий монстр
-            if (monster.type === 'shooter' || monster.type === 'elite') {
-                monster.shootCooldown -= dt()
-                // Стреляет только если игрок на линии огня
-                if (Math.abs(player.pos.y - monster.pos.y) < 24 && monster.shootCooldown <= 0) {
-                    spawnProjectile(monster, player)
-                    monster.shootCooldown = monster.type === 'elite' ? 1.2 : 2 + Math.random() * 2
-                }
-            }
         }
 
         // Прыгающий монстр
@@ -172,22 +168,6 @@ function createMonster(posVec, speed, type, player, monsters) {
     return monster
 }
 
-// Снаряд для стреляющего монстра
-function spawnProjectile(monster, player) {
-    const dir = Math.sign(player.pos.x - monster.pos.x)
-    const proj = add([
-        rect(12, 6),
-        pos(monster.pos.x + dir * 20, monster.pos.y + 8),
-        area(),
-        color(255, 255, 0),
-        move(dir, monster.type === 'elite' ? 600 : 400),
-        'monsterProjectile'
-    ])
-    proj.onUpdate(() => {
-        if (proj.pos.x < 0 || proj.pos.x > width()) proj.destroy()
-    })
-}
-
 // Chest spawner
 export function spawnChest() {
     const x = rand(100, width() - 100)
@@ -198,11 +178,11 @@ export function spawnChest() {
 // Chest class
 function createChest(posVec) {
     return add([
-        rect(32, 32),
+        sprite('rpg-chest'),
         pos(posVec.x, posVec.y),
         area(),
         body({isStatic: true}),
-        color(255, 215, 0),
+        scale(2),
         'chest'
     ])
 } 

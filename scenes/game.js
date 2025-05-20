@@ -9,9 +9,15 @@ export function createGameScene() {
 
         // Background
         add([
+            rect(width(), height()),
+            color(30, 60, 120), // основной цвет фона, похожий на твой
+            fixed()
+        ])
+        add([
             sprite('background-0'),
-            fixed(),
-            scale(4)
+            pos(0, 0),
+            scale(width() / 320, height() / 180), // если фон 320x180, подгони под размер окна
+            fixed()
         ])
 
         // Game UI
@@ -23,7 +29,7 @@ export function createGameScene() {
 
         const timeText = add([
             text(`Time: ${gameState.gameTime}`, { size: 32 }),
-            pos(width() - 150, 20),
+            pos(width() - 150, 60),
             fixed()
         ])
 
@@ -156,7 +162,7 @@ export function createGameScene() {
         // Collision handling
         player.onCollide('monster', (monster) => {
             if (gameState.isGameOver) return
-            player.takeDamage(20)
+            player.takeDamage(1)
             gameState.score -= 10
             scoreText.text = `Score: ${gameState.score}`
             monster.destroy()
@@ -168,7 +174,7 @@ export function createGameScene() {
 
         player.onCollide('monsterProjectile', (proj) => {
             if (gameState.isGameOver) return
-            player.takeDamage(15)
+            player.takeDamage(1)
             gameState.score -= 15
             scoreText.text = `Score: ${gameState.score}`
             proj.destroy()
@@ -219,6 +225,61 @@ export function createGameScene() {
                 camPos(player.pos.x, cameraVerticalOffset)
             }
         })
+
+        // --- Mouse attack logic ---
+        function rectsOverlap(a, b) {
+            return (
+                a.pos.x < b.pos.x + b.width &&
+                a.pos.x + a.width > b.pos.x &&
+                a.pos.y < b.pos.y + b.height &&
+                a.pos.y + a.height > b.pos.y
+            );
+        }
+
+        onMouseDown((btn) => {
+            if (gameState.isGameOver || player.isAttacking) return;
+            
+            // Атака в направлении взгляда персонажа
+            const attack = player.attack();
+            
+            if (attack && attack.rect) {
+                // Добавляем небольшую задержку для более точного определения попадания
+                wait(0.05, () => {
+                    // Мгновенная проверка попадания
+                    monsters.slice().forEach(monster => {
+                        const monsterRect = {
+                            pos: vec2(monster.pos.x - 24, monster.pos.y - 24), // Увеличили область коллизии
+                            width: 48,
+                            height: 48
+                        };
+                        
+                        if (rectsOverlap(attack.rect, monsterRect)) {
+                            // Увеличиваем очки за попадание
+                            gameState.score += 20;
+                            scoreText.text = `Score: ${gameState.score}`;
+                            
+                            // Уничтожаем монстра с эффектом
+                            monster.destroy();
+                            
+                            // Добавляем эффект попадания
+                            for (let i = 0; i < 8; i++) {
+                                add([
+                                    rect(4, 4),
+                                    pos(monster.pos.x, monster.pos.y),
+                                    color(255, 255, 255),
+                                    opacity(0.8),
+                                    move(
+                                        rand(-200, 200),
+                                        rand(-200, 200)
+                                    ),
+                                    lifespan(0.3, { fade: 0.3 })
+                                ]);
+                            }
+                        }
+                    });
+                });
+            }
+        });
 
         // Cleanup on scene exit
         onSceneLeave(() => {

@@ -16,6 +16,108 @@ export function createPlayer() {
             direction: 'right',
             isTakingHit: false,
             isDead: false,
+            isAttacking: false,
+            /**
+             * Универсальная атака влево или вправо
+             * @param {'left'|'right'} direction
+             * @returns {null|{direction: string, rect: {pos: Vec2, width: number, height: number}}}
+             */
+            attack() {
+                if (player.isAttacking || player.isDead) return null;
+                player.isAttacking = true;
+                
+                // Используем текущее направление персонажа
+                const direction = player.direction;
+                
+                // Используем один спрайт для атаки
+                player.use(sprite('attack1-sprite'));
+                player.flipX = (direction === 'left');
+                player.play('attack1-anim');
+
+                // Создаем более компактную волну удара
+                const waveWidth = 200; // Увеличили ширину
+                const waveHeight = 160; // Увеличили высоту
+                // Позиционируем волну ближе к персонажу
+                const startX = direction === 'left' 
+                    ? player.pos.x - waveWidth + 60 // Сдвинули ближе к персонажу
+                    : player.pos.x - 60; // Сдвинули ближе к персонажу
+                
+                // Основная волна
+                const mainWave = add([
+                    rect(waveWidth, waveHeight),
+                    pos(startX, player.pos.y - waveHeight/2),
+                    color(255, 255, 255),
+                    opacity(0.3),
+                    'attack-wave'
+                ]);
+
+                // Добавляем градиентный эффект
+                const gradient = add([
+                    rect(waveWidth, waveHeight),
+                    pos(startX, player.pos.y - waveHeight/2),
+                    color(240, 240, 240),
+                    opacity(0.2),
+                    'wave-gradient'
+                ]);
+
+                // Добавляем частицы
+                for (let i = 0; i < 20; i++) { // Увеличили количество частиц
+                    add([
+                        rect(4, 4),
+                        pos(
+                            startX + rand(-waveWidth/2, waveWidth/2),
+                            player.pos.y + rand(-waveHeight/2, waveHeight/2)
+                        ),
+                        color(255, 255, 255),
+                        opacity(0.2),
+                        move(
+                            direction === 'left' ? -rand(100, 300) : rand(100, 300),
+                            rand(-100, 100)
+                        ),
+                        lifespan(0.3, { fade: 0.3 })
+                    ]);
+                }
+
+                // Анимация появления и исчезновения
+                mainWave.scale = vec2(0.1, 1);
+                gradient.scale = vec2(0.1, 1);
+
+                // Анимация появления
+                tween(mainWave.scale, vec2(1), 0.1, (val) => {
+                    mainWave.scale = val;
+                    gradient.scale = val;
+                });
+
+                // Анимация исчезновения
+                wait(0.15, () => {
+                    tween(mainWave.opacity, 0, 0.1, (val) => {
+                        mainWave.opacity = val;
+                        gradient.opacity = val;
+                    }, () => {
+                        mainWave.destroy();
+                        gradient.destroy();
+                    });
+                });
+
+                // Короткая анимация атаки
+                wait(0.2, () => {
+                    player.isAttacking = false;
+                    player.use(sprite('idle-sprite'));
+                    player.play('idle-anim');
+                });
+
+                // Зона удара (в зависимости от направления)
+                return {
+                    direction,
+                    rect: {
+                        pos: direction === 'left'
+                            ? vec2(player.pos.x - waveWidth + 60, player.pos.y - waveHeight/2)
+                            : vec2(player.pos.x - 60, player.pos.y - waveHeight/2),
+                        width: waveWidth,
+                        height: waveHeight
+                    }
+                };
+            },
             die() {
                 if (player.isDead) return
                 player.isDead = true
@@ -142,23 +244,23 @@ export function createPlayer() {
 
     // Animation updates
     onUpdate(() => {
-        if (player.isTakingHit || player.isDead) return
+        if (player.isTakingHit || player.isDead || player.isAttacking) return;
         if (player.curAnim() !== 'run-anim' && player.isGrounded()) {
-            player.use(sprite('idle-sprite'))
-            player.play('idle-anim')
+            player.use(sprite('idle-sprite'));
+            player.play('idle-anim');
         }
         if (player.curAnim() !== 'jump-anim' && !player.isGrounded() && player.heightDelta > 0) {
-            player.use(sprite('jump-sprite'))
-            player.play('jump-anim')
+            player.use(sprite('jump-sprite'));
+            player.play('jump-anim');
         }
         if (player.curAnim() !== 'fall-anim' && !player.isGrounded() && player.heightDelta < 0) {
-            player.use(sprite('fall-sprite'))
-            player.play('fall-anim')
+            player.use(sprite('fall-sprite'));
+            player.play('fall-anim');
         }
         if (player.direction === 'left') {
-            player.flipX = true
+            player.flipX = true;
         } else {
-            player.flipX = false
+            player.flipX = false;
         }
     })
 
